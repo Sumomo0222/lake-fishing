@@ -339,20 +339,26 @@ function phaseIdx(dayT){
 }
 
 /* ================= 音效（WebAudio 合成） ================= */
-let AC=null,master=null,noiseBuf=null;
+let AC=null,master=null,noiseBuf=null,bus=null;
 let muted=false;
 try{muted=localStorage.getItem('lakeFishingMuted')==='1';}catch(e){}
 function ensureAudio(){
   if(!AC){
     try{
       AC=new (window.AudioContext||window.webkitAudioContext)();
-      master=AC.createGain();master.gain.value=0.35;master.connect(AC.destination);
+      // 限幅总线：多音叠加时不削波
+      bus=AC.createDynamicsCompressor();
+      bus.threshold.value=-14;bus.knee.value=18;bus.ratio.value=6;
+      bus.attack.value=0.003;bus.release.value=0.24;
+      master=AC.createGain();master.gain.value=muted?0:0.35;
+      bus.connect(master).connect(AC.destination);
       noiseBuf=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);
       const d=noiseBuf.getChannelData(0);
       for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
     }catch(e){}
   }
   if(AC&&AC.state==='suspended')AC.resume();
+  if(AC)startMusic();
 }
 function tone(type,f0,f1,dur,vol,delay=0){
   if(!AC||muted)return;
@@ -360,7 +366,7 @@ function tone(type,f0,f1,dur,vol,delay=0){
   o.type=type;o.frequency.setValueAtTime(f0,t);
   o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+dur);
   g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-  o.connect(g).connect(master);o.start(t);o.stop(t+dur+0.02);
+  o.connect(g).connect(bus);o.start(t);o.stop(t+dur+0.02);
 }
 function noise(dur,vol,f0,f1,delay=0){
   if(!AC||muted)return;
@@ -368,19 +374,117 @@ function noise(dur,vol,f0,f1,delay=0){
   s.buffer=noiseBuf;fl.type='lowpass';fl.frequency.setValueAtTime(f0,t);
   fl.frequency.exponentialRampToValueAtTime(Math.max(40,f1),t+dur);
   g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-  s.connect(fl).connect(g).connect(master);s.start(t);s.stop(t+dur+0.02);
+  s.connect(fl).connect(g).connect(bus);s.start(t);s.stop(t+dur+0.02);
 }
 const sfx={
   cast(){noise(0.35,0.5,300,2400);},
   splash(big){noise(big?0.5:0.28,big?0.8:0.5,1400,180);tone('sine',300,90,0.25,0.25);},
   plip(){tone('sine',620,180,0.13,0.35);},
-  bite(){tone('sine',700,220,0.12,0.5);tone('sine',900,300,0.12,0.5,0.09);tone('square',880,880,0.09,0.14,0.02);},
-  tick(){tone('square',1500,1200,0.025,0.10);},
-  snap(){tone('sawtooth',420,70,0.3,0.5);noise(0.15,0.5,3000,300);},
-  fail(){tone('sine',340,180,0.4,0.3);},
-  chime(){tone('sine',660,660,0.22,0.4);tone('sine',990,990,0.3,0.4,0.16);},
-  record(){tone('sine',660,660,0.2,0.35);tone('sine',880,880,0.2,0.35,0.14);tone('sine',1320,1320,0.4,0.35,0.28);},
+  nibble(){ // 远处鱼儿试探：闷、轻，与咬钩拉开层次
+    if(!AC||muted)return;
+    const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain(),fl=AC.createBiquadFilter();
+    o.type='sine';o.frequency.setValueAtTime(420,t);o.frequency.exponentialRampToValueAtTime(150,t+0.16);
+    fl.type='lowpass';fl.frequency.value=600;
+    g.gain.setValueAtTime(0.14,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+    o.connect(fl).connect(g).connect(bus);o.start(t);o.stop(t+0.2);
+  },
+  bite(){ // 咬钩：急促上扬的双音 + 水面拍击
+    tone('sine',700,220,0.12,0.5);
+    tone('sine',1050,520,0.16,0.4,0.07);
+    noise(0.2,0.4,2400,600,0.02);
+  },
+  tick(){ // 收线棘轮：木质咔哒
+    noise(0.03,0.35,1800,900);
+  },
+  snap(){ // 断线：嘣 + 高频脆响 + 低频冲击
+    tone('triangle',380,60,0.28,0.6);
+    noise(0.18,0.6,4000,400,0.01);
+    tone('sine',150,60,0.3,0.4,0.02);
+  },
+  fail(){tone('triangle',330,170,0.4,0.3);},
+  chime(){ // 中鱼：宫调五度和音，水波荡开
+    pluck(523.25,0.5,1.8);
+    pluck(783.99,0.4,2.2,0.12);
+  },
+  record(){ // 初见新鱼：宫调上行琶音
+    pluck(523.25,0.45,1.6);
+    pluck(659.25,0.42,1.8,0.13);
+    pluck(783.99,0.4,2.0,0.26);
+    pluck(1046.5,0.42,2.6,0.42);
+  },
 };
+
+/* ================= 背景音乐（程序化环境乐） ================= */
+/* 五声音阶拨音随机游走 + 低音衬底 + 湖面风声；白昼偶发鸟鸣，夜晚低沉稀疏 */
+let musicGain=null,musicOn=false,musicIdx=4,nextNoteAt=0,droneAt=0;
+const PENT=[261.63,293.66,329.63,392,440,523.25,587.33,659.25,783.99,880]; // C 宫五声两个八度
+function startMusic(){
+  if(musicOn||!AC)return;musicOn=true;
+  musicGain=AC.createGain();musicGain.gain.value=0;
+  musicGain.gain.setTargetAtTime(0.55,AC.currentTime,1.2); // 约 3 秒淡入
+  // 延迟回声模拟水岸混响
+  const dl=AC.createDelay(1);dl.delayTime.value=0.42;
+  const fb=AC.createGain();fb.gain.value=0.4;
+  const wet=AC.createGain();wet.gain.value=0.5;
+  musicGain.connect(bus);
+  musicGain.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(wet);wet.connect(bus);
+  // 湖面风声：低通噪声 + 缓慢起伏
+  const s=AC.createBufferSource();s.buffer=noiseBuf;s.loop=true;
+  const fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=340;
+  const wg=AC.createGain();wg.gain.value=0;
+  wg.gain.setTargetAtTime(0.08,AC.currentTime,1.6);
+  const lfo=AC.createOscillator();lfo.frequency.value=0.07;
+  const lg=AC.createGain();lg.gain.value=0.03;
+  lfo.connect(lg).connect(wg.gain);lfo.start();
+  s.connect(fl).connect(wg).connect(bus);s.start();
+  nextNoteAt=AC.currentTime+1.5;
+  setInterval(musicStep,300);
+}
+function pluck(f,vol,dur,when){
+  if(!AC||!musicGain)return;
+  const t=AC.currentTime+(when||0);
+  const o=AC.createOscillator(),o2=AC.createOscillator();
+  const g=AC.createGain(),g2=AC.createGain(),fl=AC.createBiquadFilter();
+  o.type='sine';o.frequency.value=f;
+  o2.type='sine';o2.frequency.value=f*2;g2.gain.value=0.3;
+  fl.type='lowpass';fl.frequency.value=Math.min(6000,f*5);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.025);
+  g.gain.exponentialRampToValueAtTime(0.0006,t+dur);
+  o.connect(fl);o2.connect(g2);g2.connect(fl);fl.connect(g);g.connect(musicGain);  o.start(t);o2.start(t);o.stop(t+dur+0.1);o2.stop(t+dur+0.1);
+}
+function chirp(){ // 白日鸟鸣
+  if(!AC)return;
+  const t0=AC.currentTime;
+  const n=2+(Math.random()*2|0);
+  for(let i=0;i<n;i++){
+    const t=t0+i*rand(0.12,0.2);
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='sine';o.frequency.setValueAtTime(rand(2400,3200),t);
+    o.frequency.exponentialRampToValueAtTime(rand(1800,2400),t+0.09);
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.03,t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0005,t+0.12);
+    o.connect(g).connect(bus);o.start(t);o.stop(t+0.15);
+  }
+}
+function musicStep(){
+  if(!AC||muted||!musicGain)return;
+  const now=AC.currentTime;
+  const dayT=(START+dayClock/CYCLE)%1,pi=phaseIdx(dayT),night=pi===3;
+  if(now>=nextNoteAt){
+    const lo=night?0:2,hi=night?7:9;
+    musicIdx=clamp(musicIdx+((Math.random()*3|0)-1),lo,hi);
+    const vol=night?0.2:0.3;
+    pluck(PENT[musicIdx],vol,rand(2.5,4.2));
+    if(Math.random()<0.35)pluck(PENT[musicIdx]*1.5,vol*0.5,rand(2,3.4),rand(0.15,0.4));
+    if(pi===1&&Math.random()<0.16)chirp();
+    nextNoteAt=now+(night?rand(2.4,5):rand(1.1,2.6));
+  }
+  if(now>=droneAt){ // 低音衬底
+    pluck(night?98:130.81,0.16,rand(6,9));
+    droneAt=now+rand(12,18);
+  }
+}
 
 /* ================= 存档 ================= */
 let save={v:1,dex:{},stats:{casts:0,catches:0}};
@@ -720,7 +824,7 @@ function update(dt){
         w.next=rand(0.2,0.6);
       }else if(w.stage==='nibble'&&w.next<=0){
         bobber.dipT=0.001; // 触发点动
-        sfx.plip();
+        sfx.nibble();
         addRipple(bobber.tx,bobber.ty,26,30);
         w.nibbles--;
         setHint('浮漂在动！沉住气……',true);
@@ -1239,7 +1343,13 @@ const sndBtn=document.getElementById('btnSound');
 function refreshSnd(){sndBtn.textContent=muted?'静':'音';sndBtn.style.opacity=muted?0.55:1;}
 sndBtn.addEventListener('click',()=>{
   muted=!muted;try{localStorage.setItem('lakeFishingMuted',muted?'1':'0');}catch(e){}
-  refreshSnd();if(!muted){ensureAudio();sfx.plip();}
+  refreshSnd();
+  if(master&&AC){ // 平滑过渡避免爆音
+    const g=master.gain;
+    g.cancelScheduledValues(AC.currentTime);
+    g.setTargetAtTime(muted?0:0.35,AC.currentTime,0.03);
+  }
+  if(!muted){ensureAudio();sfx.plip();}
 });
 refreshSnd();
 
