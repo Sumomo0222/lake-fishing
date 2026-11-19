@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>湖畔垂钓 · 湖边钓鱼互动小站</title>
+<meta name="description" content="坐在湖边木栈桥上，抛竿、等鱼、收线，把渔获收进图鉴。">
+<meta name="theme-color" content="#1c2a4e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23b03a2e'/><text x='50' y='68' font-size='46' text-anchor='middle' fill='%23f4ead6' font-family='serif'>钓</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2b2620; --paper:#f4ead6; --paper2:#eadfc4; --seal:#b03a2e; --gold:#c2803a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#0c1420}
+  body{
+    font-family:'Noto Serif SC','Songti SC',serif;color:var(--paper);
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+    touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color:transparent;
+  }
+  #scene{position:fixed;inset:0;width:100%;height:100%;display:block}
+  /* 暗角，电影感 */
+  body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(ellipse at 50% 42%,transparent 55%,rgba(6,8,14,.38) 100%);}
+
+  /* ---- 左上题字 ---- */
+  .brand{position:fixed;top:calc(env(safe-area-inset-top,0px) + 16px);left:16px;z-index:10;
+    display:flex;gap:10px;align-items:flex-start;pointer-events:none}
+  .brand .vtitle{writing-mode:vertical-rl;font-family:'Ma Shan Zheng',serif;
+    font-size:clamp(20px,4.2vh,32px);letter-spacing:8px;line-height:1.1;
+    color:#f7f0df;text-shadow:0 2px 10px rgba(0,0,0,.55)}
+  .brand .seal{writing-mode:vertical-rl;background:var(--seal);color:#f7e9d2;
+    font-family:'Ma Shan Zheng',serif;font-size:clamp(12px,2vh,15px);letter-spacing:3px;
+    padding:6px 4px;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.4);opacity:.92;margin-top:4px}
+  .brand .phase{writing-mode:vertical-rl;font-size:clamp(11px,1.8vh,13px);letter-spacing:4px;
+    color:rgba(247,240,223,.85);margin-top:6px;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+
+  /* ---- 右上按钮 ---- */
+  .hud-actions{position:fixed;top:calc(env(safe-area-inset-top,0px) + 16px);right:16px;z-index:10;display:flex;gap:10px}
+  .hud-btn{width:44px;height:44px;border-radius:50%;border:1px solid rgba(244,234,214,.55);
+    background:rgba(24,19,13,.42);color:var(--paper);font-family:'Noto Serif SC',serif;
+    font-size:15px;font-weight:600;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s}
+  .hud-btn:active{transform:scale(.92)}
+  .hud-btn[disabled]{opacity:.35;pointer-events:none}
+
+  /* ---- 底部交互 ---- */
+  #bottom{position:fixed;left:0;right:0;bottom:0;z-index:10;padding:0 16px calc(env(safe-area-inset-bottom,0px) + 22px);
+    display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:none}
+  #hint{font-size:clamp(13px,2vh,15px);letter-spacing:2px;color:rgba(247,240,223,.92);
+    text-shadow:0 1px 6px rgba(0,0,0,.6);text-align:center;min-height:1.4em;transition:color .25s}
+  #hint.alert{color:#ffb372;font-weight:700}
+  #tension{width:min(64vw,300px);height:10px;border-radius:5px;background:rgba(8,8,12,.45);
+    border:1px solid rgba(244,234,214,.35);overflow:hidden;opacity:0;transition:opacity .25s;position:relative}
+  #tension.on{opacity:1}
+  #tension .fill{height:100%;width:0%;border-radius:4px;
+    background:linear-gradient(90deg,#7fb069 0%,#c8c24a 55%,#d1493a 82%);transition:width .06s linear}
+  #tension.danger{animation:blink .35s infinite}
+  @keyframes blink{50%{box-shadow:0 0 0 3px rgba(209,73,58,.55)}}
+  #action{pointer-events:auto;width:92px;height:92px;border-radius:50%;
+    background:rgba(24,19,13,.5);border:2px solid rgba(244,234,214,.75);color:var(--paper);
+    font-family:'Ma Shan Zheng',serif;font-size:30px;letter-spacing:2px;line-height:1.05;
+    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;transition:transform .15s,background .2s;
+    box-shadow:0 6px 24px rgba(0,0,0,.45)}
+  #action:active{transform:scale(.94)}
+  #action.hot{background:var(--seal);border-color:#ffd9a0;color:#fff;animation:pulse .55s infinite}
+  #action.reel{background:rgba(58,74,50,.65);border-color:#cfe3b8;font-size:20px;letter-spacing:1px}
+  #action[disabled]{opacity:.5}
+  @keyframes pulse{50%{transform:scale(1.06);box-shadow:0 0 0 12px rgba(176,58,46,.18)}}
+
+  /* ---- 浮字提示 ---- */
+  #toast{position:fixed;top:26%;left:50%;transform:translate(-50%,-8px);z-index:15;
+    background:rgba(20,16,12,.72);border:1px solid rgba(244,234,214,.4);color:var(--paper);
+    padding:10px 22px;border-radius:8px;font-size:15px;letter-spacing:2px;opacity:0;
+    pointer-events:none;transition:.3s;text-align:center;max-width:80vw;backdrop-filter:blur(3px)}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  #toast.bad{border-color:rgba(209,110,90,.7);color:#ffcbb0}
+
+  /* ---- 覆盖层 / 纸面卡片 ---- */
+  .overlay{position:fixed;inset:0;z-index:30;background:rgba(8,10,16,.55);
+    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.28s;padding:18px}
+  .overlay.open{opacity:1;pointer-events:auto}
+  .paper{position:relative;background:linear-gradient(160deg,var(--paper),var(--paper2));
+    color:var(--ink);border-radius:14px;border:1px solid #c9b998;
+    box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 0 60px rgba(150,120,70,.12);
+    padding:26px 26px 22px;max-width:min(92vw,520px);width:100%;
+    max-height:86vh;overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:center}
+  .paper::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.5;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.05'/></svg>")}
+  .paper h2{font-family:'Ma Shan Zheng',serif;font-size:30px;letter-spacing:6px;font-weight:400;margin-bottom:6px}
+  .paper .sub{font-size:13px;letter-spacing:3px;color:#8a7a5e;margin-bottom:14px}
+  #catchArt{width:min(78vw,320px);height:auto;display:block;margin:2px auto 4px}
+  #catchName{font-size:30px;margin-bottom:2px}
+  .stars{color:var(--gold);font-size:16px;letter-spacing:4px;margin:2px 0 6px}
+  .rar-tag{display:inline-block;font-size:12px;letter-spacing:2px;border:1px solid currentColor;
+    border-radius:4px;padding:1px 10px;margin-bottom:8px}
+  #catchSize{font-size:15px;letter-spacing:2px;margin-bottom:4px}
+  #catchRecord{font-size:13px;color:var(--seal);letter-spacing:2px;min-height:1.3em;margin-bottom:4px}
+  #catchDesc{font-size:13.5px;line-height:1.8;color:#5c5240;margin:8px 6px 16px;text-align:center}
+  .new-badge{position:absolute;top:16px;right:16px;writing-mode:vertical-rl;background:var(--seal);
+    color:#f7e9d2;font-family:'Ma Shan Zheng',serif;font-size:15px;letter-spacing:3px;
+    padding:8px 5px;border-radius:4px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .new-badge.show{display:block;animation:stamp .4s cubic-bezier(.2,2,.4,1)}
+  @keyframes stamp{0%{transform:scale(2.2);opacity:0}100%{transform:scale(1);opacity:1}}
+  .btn{display:inline-block;border:1.5px solid var(--ink);background:transparent;color:var(--ink);
+    font-family:'Noto Serif SC',serif;font-weight:600;font-size:15px;letter-spacing:4px;
+    padding:11px 30px;border-radius:8px;cursor:pointer;transition:.2s}
+  .btn.primary{background:var(--ink);color:var(--paper)}
+  .btn:active{transform:scale(.96)}
+  .btn+.btn{margin-left:10px}
+
+  /* ---- 图鉴 ---- */
+  .paper.wide{max-width:min(94vw,600px)}
+  #dexProgress{font-size:14px;letter-spacing:2px;color:#8a7a5e;margin-bottom:14px}
+  #dexProgress b{color:var(--seal);font-size:17px}
+  #dexGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px;margin-bottom:14px}
+  .slot{border:1px solid #cdbd9a;border-radius:10px;padding:10px 6px 8px;background:rgba(255,252,244,.5);
+    display:flex;flex-direction:column;align-items:center;gap:3px}
+  .slot canvas{width:86px;height:52px;display:block}
+  .slot .nm{font-size:14px;font-weight:700;letter-spacing:2px}
+  .slot .st{font-size:11px;letter-spacing:2px;color:var(--gold)}
+  .slot .mt{font-size:11px;color:#8a7a5e;line-height:1.5;white-space:pre-line}
+  .slot.locked{opacity:.62}
+  .slot.locked .nm{color:#9a8c72}
+  .slot.legend{border-color:#d8a860;background:rgba(240,220,180,.5)}
+  #dexStats{font-size:12.5px;letter-spacing:2px;color:#8a7a5e;margin-bottom:16px}
+
+  /* ---- 帮助 ---- */
+  .help-txt{text-align:left;font-size:13.5px;line-height:2;color:#4c4232;margin:6px 2px 18px}
+  .help-txt b{color:var(--seal)}
+  .help-txt .k{border:1px solid #a5987e;border-radius:4px;padding:0 6px;font-size:12px;background:rgba(255,255,255,.4)}
+
+  @media (max-width:480px){
+    .paper{padding:20px 16px 18px}
+    .paper h2{font-size:25px;letter-spacing:4px}
+    #action{width:84px;height:84px;font-size:26px}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="brand">
+  <div class="vtitle">湖畔垂钓</div>
+  <div class="seal">闲趣</div>
+  <div class="phase" id="phaseName">黄昏</div>
+</div>
+
+<div class="hud-actions">
+  <button class="hud-btn" id="btnDex" title="渔获图鉴">图鉴</button>
+  <button class="hud-btn" id="btnSound" title="声音开关">音</button>
+  <button class="hud-btn" id="btnHelp" title="玩法说明">？</button>
+</div>
+
+<div id="bottom">
+  <div id="hint">点击「抛竿」，把鱼线甩向湖心</div>
+  <div id="tension"><div class="fill" id="tensionFill"></div></div>
+  <button id="action">抛竿</button>
+</div>
+
+<div id="toast"></div>
+
+<!-- 渔获卡片 -->
+<div class="overlay" id="catchOverlay">
+  <div class="paper">
+    <div class="new-badge" id="newBadge">初见</div>
+    <div class="sub">—— 渔　获 ——</div>
+    <canvas id="catchArt" width="320" height="180"></canvas>
+    <h2 id="catchName">鲤鱼</h2>
+    <div class="stars" id="catchStars"></div>
+    <div class="rar-tag" id="catchRarity">常见</div>
+    <div id="catchSize">体长 42.3 cm</div>
+    <div id="catchRecord"></div>
+    <p id="catchDesc"></p>
+    <button class="btn primary" id="catchOk">收下 · 继续垂钓</button>
+  </div>
+</div>
+
+<!-- 图鉴 -->
+<div class="overlay" id="dexOverlay">
+  <div class="paper wide">
+    <h2>湖中鱼获 · 图鉴</h2>
+    <div class="sub">一日四时，鱼汛各异</div>
+    <div id="dexProgress">已收录 <b>0</b> / 12 种</div>
+    <div id="dexGrid"></div>
+    <div id="dexStats"></div>
+    <button class="btn" id="dexClose">合上</button>
+  </div>
+</div>
+
+<!-- 玩法说明 -->
+<div class="overlay" id="helpOverlay">
+  <div class="paper">
+    <h2>垂钓之法</h2>
+    <div class="sub">湖边一坐，心静鱼自来</div>
+    <div class="help-txt">
+      <b>抛竿</b> —— 点击「抛竿」，鱼线落水后静候。<br>
+      <b>辨汛</b> —— 浮漂轻轻点动只是鱼在试探，<b>沉住气别提竿</b>。<br>
+      <b>提竿</b> —— 浮漂猛然下沉、出现红色「！」时，<b>立刻点击屏幕</b>。<br>
+      <b>遛鱼</b> —— <span class="k">按住屏幕</span>收线，<span class="k">松手</span>卸力；张力顶满红线会<b>断线跑鱼</b>。<br>
+      <b>图鉴</b> —— 钓起的鱼自动收录；不同鱼儿在<b>黎明、白昼、黄昏、夜晚</b>出没，湖边光影也会随时间流转。
+    </div>
+    <button class="btn primary" id="helpClose">知道了</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= 工具 ================= */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rand=(a,b)=>a+Math.random()*(b-a);
+const TAU=Math.PI*2;
+function hex2rgb(h){
+  if(Array.isArray(h))return h.slice();
+  if(typeof h==='string'&&h.startsWith('rgb')){
+    const m=h.match(/\d+/g);return [+m[0],+m[1],+m[2]];
+  }
+  h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+  return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+}
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;
+  };
+}
+function mix(c1,c2,t){const a=hex2rgb(c1),b=hex2rgb(c2);
+  return `rgb(${Math.round(lerp(a[0],b[0],t))},${Math.round(lerp(a[1],b[1],t))},${Math.round(lerp(a[2],b[2],t))})`;}
+function shade(hex,f){const a=hex2rgb(hex);
+  return `rgb(${Math.round(a[0]*f)},${Math.round(a[1]*f)},${Math.round(a[2]*f)})`;}
+function mixArr(c1,c2,t){return [lerp(c1[0],c2[0],t),lerp(c1[1],c2[1],t),lerp(c1[2],c2[2],t)];}
+function css(c){return `rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;}
+
+/* ================= 鱼种数据 ================= */
+const RARITY=[{n:'常见',c:'#7a7568'},{n:'优良',c:'#4e8a5a'},{n:'稀有',c:'#3e6f9e'},{n:'史诗',c:'#8a5aa0'},{n:'传说',c:'#c2803a'}];
+const PHASES=['黎明','白昼','黄昏','夜晚'];
+const SPECIES=[
+ {id:'baitiao',name:'白鲦',rarity:0,times:[0,1],w:30,size:[8,15],body:'#b8c8d0',belly:'#eef4f6',slim:true,desc:'成群掠过水面的小银鱼，动作极快，是新手最常见的渔获。'},
+ {id:'jiyu',name:'鲫鱼',rarity:0,times:[0,1,2],w:26,size:[10,24],body:'#c8b98a',belly:'#efe6c8',desc:'湖中最常见的老住户，性情温和，咬钩轻缓，最宜入门。'},
+ {id:'nqiu',name:'泥鳅',rarity:0,times:[2,3],w:16,size:[10,19],body:'#8a765a',belly:'#c9b892',slim:true,whisker:true,desc:'爱在夜里的淤泥中钻来钻去，浑身滑腻，抓不牢。'},
+ {id:'caoyu',name:'草鱼',rarity:1,times:[1],w:18,size:[26,48],body:'#a9b78a',belly:'#e3ead0',desc:'爱吃水草的大个子，平时躲在浅湾，力气不小。'},
+ {id:'liyu',name:'鲤鱼',rarity:1,times:[0,1,2,3],w:16,size:[28,58],body:'#c98f4e',belly:'#efd9ac',scales:true,desc:'口须短钝，颇有灵性。老人说湖里的鲤鱼记得每一张面孔。'},
+ {id:'qingyu',name:'青鱼',rarity:1,times:[2,3],w:12,size:[34,66],body:'#5d7484',belly:'#a8bcc4',desc:'深水里沉默的力量，一旦咬钩，拉力十足。'},
+ {id:'luyu',name:'鲈鱼',rarity:2,times:[0,2],w:10,size:[30,52],body:'#7d8fa0',belly:'#dfe7ec',stripes:'#4a5a68',desc:'只在晨昏出没的猎手，背鳍锋利，咬钩凶狠。'},
+ {id:'nianyu',name:'鲶鱼',rarity:2,times:[3],w:9,size:[40,78],body:'#5a5548',belly:'#a99e84',whisker:true,desc:'夜行巨物，两根长须在黑暗里探路，湖底的老皇帝。'},
+ {id:'heiyu',name:'黑鱼',rarity:2,times:[2,3],w:7,size:[34,70],body:'#3f4a3a',belly:'#8a9578',stripes:'#2a3226',desc:'伏击型猎手，出手极快，提竿稍慢便扑了个空。'},
+ {id:'tuanyu',name:'团鱼',rarity:3,times:[2,3],w:4,size:[15,30],turtle:true,body:'#6b6a4f',belly:'#d8cf9f',desc:'甲鱼。爬上浅滩晒壳时最容易被遇见，据说见者有福。'},
+ {id:'jinli',name:'锦鲤',rarity:3,times:[0],w:3,size:[38,72],body:'#e8e2d5',belly:'#f8f4ea',spots:'#d4553a',spots2:'#e6913c',scales:true,desc:'相传是湖神放生的锦鲤，只在黎明薄雾里现身，见者即是缘分。'},
+ {id:'longyu',name:'青鳞龙鱼',rarity:4,times:[3],w:1,size:[80,125],body:'#3f7a8c',belly:'#bfe3e8',long:true,glow:true,desc:'湖心深处的传说。见过它的人，都说不清那一刻是梦是真。'},
+];
+const DIFF=[0.12,0.30,0.50,0.70,0.92];
+
+/* ================= 画布 ================= */
+const cv=document.getElementById('scene');
+const ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1,horizon=0;
+let ridgeLayers=[];
+function resize(){
+  DPR=Math.min(devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;
+  cv.width=W*DPR;cv.height=H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  horizon=H*0.44;
+  buildRidges();
+}
+addEventListener('resize',resize);
+
+/* 山脊：几层正弦叠加，seed 固定 */
+function ridgeFn(seed){
+  const ph=[...Array(4)].map((_,i)=>Math.sin(seed*13.7+i*7.3)*4);
+  return x=>0.5+0.28*Math.sin(x*3.1+ph[0])+0.16*Math.sin(x*7.7+ph[1])
+              +0.09*Math.sin(x*13.3+ph[2])+0.05*Math.sin(x*23.7+ph[3]);
+}
+function buildRidges(){
+  ridgeLayers=[0,1,2].map(i=>{
+    const f=ridgeFn(i+1.7),n=72,pts=[];
+    for(let k=0;k<=n;k++)pts.push(f(k/n));
+    return {pts,amp:H*(0.11-0.028*i),off:H*0.008*i};
+  });
+}
+
+/* ================= 场景实体 ================= */
+const clouds=[...Array(5)].map((_,i)=>({
+  x:Math.random(),y:0.06+Math.random()*0.24,s:0.6+Math.random()*0.9,
+  v:0.004+Math.random()*0.008,seed:Math.random()*10
+}));
+const stars=[...Array(90)].map(()=>({x:Math.random(),y:Math.random()*0.42,r:0.5+Math.random()*1.2,tw:Math.random()*TAU}));
+const shimmer=[...Array(14)].map(()=>({x:Math.random(),y:Math.random(),len:0.04+Math.random()*0.09,v:0.01+Math.random()*0.02,a:0.10+Math.random()*0.16}));
+const fireflies=[...Array(14)].map(()=>({x:Math.random(),y:0.72+Math.random()*0.2,ph:Math.random()*TAU,sp:0.3+Math.random()*0.5,r:1+Math.random()*1.4}));
+let birds=null,birdTimer=rand(6,20);
+let ripples=[],splashes=[],ambient=[];
+function initAmbient(){
+  ambient=[...Array(3)].map((_,i)=>({
+    x:rand(0.2,0.8),y:rand(0.52,0.72),dir:Math.random()<0.5?1:-1,
+    speed:rand(0.010,0.022),size:rand(0.05,0.11),ph:Math.random()*TAU,role:'wander',ang:0
+  }));
+}
+initAmbient();
+function addRipple(x,y,max,spd){ripples.push({x,y,r:2,max,spd,a:0.5});if(ripples.length>40)ripples.shift();}
+function addSplash(x,y,n,pow){for(let i=0;i<n;i++)splashes.push({
+  x:x+rand(-6,6),y:y+rand(-3,3),vx:rand(-1,1)*pow,vy:-rand(0.5,1.4)*pow,life:rand(0.4,0.8),t:0});}
+
+/* ================= 昼夜调色 ================= */
+const CYCLE=240,START=0.50; // 从黄昏开始，一轮 4 分钟
+let dayClock=0;
+const KEYS=[
+ {t:0.00,top:'#5a6aa0',mid:'#c78a8a',hor:'#f7c98e',deep:'#23384a',light:0.85},
+ {t:0.10,top:'#7bb8dd',mid:'#a8d4e6',hor:'#e8f2ee',deep:'#2b5860',light:1.00},
+ {t:0.40,top:'#6fb0d8',mid:'#a3d0e2',hor:'#eef4ec',deep:'#2b5860',light:1.00},
+ {t:0.52,top:'#47497e',mid:'#a06a92',hor:'#ffb372',deep:'#243446',light:0.80},
+ {t:0.66,top:'#131a3a',mid:'#27345e',hor:'#3d4f7e',deep:'#101c30',light:0.52},
+ {t:0.80,top:'#0b1128',mid:'#1c2a4e',hor:'#31436e',deep:'#0a1220',light:0.45},
+ {t:0.92,top:'#0b1128',mid:'#1c2a4e',hor:'#31436e',deep:'#0a1220',light:0.45},
+ {t:1.00,top:'#5a6aa0',mid:'#c78a8a',hor:'#f7c98e',deep:'#23384a',light:0.85},
+];
+function skyAt(dayT){
+  let a=KEYS[0],b=KEYS[KEYS.length-1];
+  for(let i=0;i<KEYS.length-1;i++)if(dayT>=KEYS[i].t&&dayT<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}
+  const t=(dayT-a.t)/Math.max(0.0001,(b.t-a.t));
+  return {
+    top:mixArr(hex2rgb(a.top),hex2rgb(b.top),t),
+    mid:mixArr(hex2rgb(a.mid),hex2rgb(b.mid),t),
+    hor:mixArr(hex2rgb(a.hor),hex2rgb(b.hor),t),
+    deep:mixArr(hex2rgb(a.deep),hex2rgb(b.deep),t),
+    light:lerp(a.light,b.light,t),
+  };
+}
+function phaseIdx(dayT){
+  if(dayT<0.07||dayT>=0.94)return 0;
+  if(dayT<0.46)return 1;
+  if(dayT<0.62)return 2;
+  return 3;
+}
+
+/* ================= 音效（WebAudio 合成） ================= */
+let AC=null,master=null,noiseBuf=null;
+let muted=false;
+try{muted=localStorage.getItem('lakeFishingMuted')==='1';}catch(e){}
+function ensureAudio(){
+  if(!AC){
+    try{
+      AC=new (window.AudioContext||window.webkitAudioContext)();
+      master=AC.createGain();master.gain.value=0.35;master.connect(AC.destination);
+      noiseBuf=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);
+      const d=noiseBuf.getChannelData(0);
+      for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    }catch(e){}
+  }
+  if(AC&&AC.state==='suspended')AC.resume();
+}
+function tone(type,f0,f1,dur,vol,delay=0){
+  if(!AC||muted)return;
+  const t=AC.currentTime+delay,o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(f0,t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g).connect(master);o.start(t);o.stop(t+dur+0.02);
+}
+function noise(dur,vol,f0,f1,delay=0){
+  if(!AC||muted)return;
+  const t=AC.currentTime+delay,s=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();
+  s.buffer=noiseBuf;fl.type='lowpass';fl.frequency.setValueAtTime(f0,t);
+  fl.frequency.exponentialRampToValueAtTime(Math.max(40,f1),t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  s.connect(fl).connect(g).connect(master);s.start(t);s.stop(t+dur+0.02);
+}
+const sfx={
+  cast(){noise(0.35,0.5,300,2400);},
+  splash(big){noise(big?0.5:0.28,big?0.8:0.5,1400,180);tone('sine',300,90,0.25,0.25);},
+  plip(){tone('sine',620,180,0.13,0.35);},
+  bite(){tone('sine',700,220,0.12,0.5);tone('sine',900,300,0.12,0.5,0.09);tone('square',880,880,0.09,0.14,0.02);},
+  tick(){tone('square',1500,1200,0.025,0.10);},
+  snap(){tone('sawtooth',420,70,0.3,0.5);noise(0.15,0.5,3000,300);},
+  fail(){tone('sine',340,180,0.4,0.3);},
+  chime(){tone('sine',660,660,0.22,0.4);tone('sine',990,990,0.3,0.4,0.16);},
+  record(){tone('sine',660,660,0.2,0.35);tone('sine',880,880,0.2,0.35,0.14);tone('sine',1320,1320,0.4,0.35,0.28);},
+};
+
+/* ================= 存档 ================= */
+let save={v:1,dex:{},stats:{casts:0,catches:0}};
+try{const s=localStorage.getItem('lakeFishingSaveV1');
+  if(s){const o=JSON.parse(s);if(o&&o.v===1){save=o;if(!save.stats)save.stats={casts:0,catches:0};if(!save.dex)save.dex={};}}
+}catch(e){}
+function persist(){try{localStorage.setItem('lakeFishingSaveV1',JSON.stringify(save));}catch(e){}}
+
+/* ================= 画鱼 ================= */
+/* 在已平移的 ctx 上，以 (0,0) 为中心画一条朝右、长 L 的鱼 */
+function drawFishArt(c,sp,L,mono,wag){
+  wag=wag||0;
+  c.save();
+  if(sp.glow&&!mono){c.shadowColor='rgba(110,215,230,0.9)';c.shadowBlur=L*0.16;}
+  const dark=mono?'#26211a':shade(sp.body,0.72);
+  if(sp.turtle){
+    const hw=L*0.5,hh=L*0.33;
+    c.fillStyle=mono?'#26211a':shade(sp.body,0.6); // 四肢
+    const flip=(x,y)=>{c.beginPath();c.ellipse(x,y,L*0.13,L*0.055,x<0?0.5:-0.5,0,TAU);c.fill();};
+    flip(-hw*0.75,-hh*0.8);flip(hw*0.75,-hh*0.8);flip(-hw*0.75,hh*0.8);flip(hw*0.75,hh*0.8);
+    c.beginPath();c.arc(hw*1.02,0,L*0.11,0,TAU);c.fill(); // 头
+    c.fillStyle=mono?'#26211a':sp.body;
+    c.beginPath();c.ellipse(0,0,hw,hh,0,0,TAU);c.fill();
+    if(!mono){
+      c.strokeStyle='rgba(40,36,24,0.5)';c.lineWidth=L*0.014;
+      for(let i=-2;i<=2;i++){c.beginPath();c.ellipse(0,0,hw*Math.abs(i)/3,hh,0,-Math.PI/2,Math.PI/2,i<0);c.stroke();}
+      c.beginPath();c.ellipse(0,hh*0.55,hw*0.8,hh*0.42,0,0,TAU);c.fillStyle=sp.belly;c.fill();
+      c.fillStyle='#26211a';c.beginPath();c.arc(hw*1.06,-L*0.02,L*0.018,0,TAU);c.fill();
+    }
+    c.restore();return;
+  }
+  const h=L*(sp.slim?0.17:sp.long?0.21:0.30);
+  const nose=L*0.5,tailX=-L*0.42,wagX=Math.sin(wag)*L*0.06;
+  // 身体
+  const body=new Path2D();
+  body.moveTo(nose,0);
+  body.bezierCurveTo(L*0.30,-h*0.95,-L*0.10,-h*1.02,tailX,-h*0.30);
+  body.lineTo(tailX,h*0.30);
+  body.bezierCurveTo(-L*0.10,h*1.02,L*0.30,h*0.95,nose,0);
+  // 尾
+  const tail=new Path2D();
+  tail.moveTo(tailX+L*0.03,0);
+  tail.quadraticCurveTo(-L*0.62,-h*0.35,-L*0.74+wagX,-h*0.95);
+  tail.quadraticCurveTo(-L*0.55+wagX,0,-L*0.74+wagX,h*0.95);
+  tail.quadraticCurveTo(-L*0.62,h*0.35,tailX+L*0.03,0);
+  c.fillStyle=mono?'#26211a':dark;c.fill(tail);
+  {
+    // 背鳍 / 腹鳍
+    c.fillStyle=mono?'#26211a':dark;
+    c.beginPath();c.moveTo(L*0.02,-h*0.85);
+    c.quadraticCurveTo(-L*0.08,-h*1.5,-L*0.16,-h*0.8);c.closePath();c.fill();
+    c.beginPath();c.moveTo(L*0.16,h*0.6);
+    c.quadraticCurveTo(L*0.10,h*1.3,-L*0.02,h*0.7);c.closePath();c.fill();
+  }
+  // 身体填充
+  if(mono){c.fillStyle='#26211a';}
+  else{
+    const g=c.createLinearGradient(0,-h,0,h);
+    g.addColorStop(0,sp.body);g.addColorStop(0.55,shade(sp.body,0.9));g.addColorStop(1,sp.belly);
+    c.fillStyle=g;
+  }
+  c.fill(body);
+  if(!mono){
+    c.save();c.clip(body);
+    if(sp.stripes){c.fillStyle=sp.stripes;c.globalAlpha=0.75;
+      for(let i=0;i<4;i++){const x=L*(0.32-i*0.13);c.fillRect(x,-h,L*0.06,h*2);}c.globalAlpha=1;}
+    if(sp.spots){c.fillStyle=sp.spots;
+      [[0.28,-0.35,0.07],[0.12,-0.15,0.05],[0.02,0.28,0.07],[-0.12,-0.3,0.05],[-0.2,0.2,0.06],[0.18,0.25,0.045]]
+      .forEach(p=>{c.beginPath();c.arc(L*p[0],h*p[1]*2,L*p[2],0,TAU);c.fill();});
+      c.fillStyle=sp.spots2;c.globalAlpha=0.85;
+      [[0.2,-0.5,0.045],[-0.05,-0.55,0.05],[-0.16,0.5,0.04],[0.05,0.6,0.045]]
+      .forEach(p=>{c.beginPath();c.arc(L*p[0],h*p[1]*1.6,L*p[2],0,TAU);c.fill();});c.globalAlpha=1;}
+    if(sp.scales){c.strokeStyle='rgba(60,40,20,0.25)';c.lineWidth=L*0.012;
+      for(let i=0;i<4;i++){const x=L*(0.3-i*0.15);
+        c.beginPath();c.arc(x,0,L*0.09,-1.1,1.1);c.stroke();}}
+    // 侧线高光
+    c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=L*0.015;
+    c.beginPath();c.moveTo(L*0.4,-h*0.25);c.quadraticCurveTo(0,-h*0.45,tailX,-h*0.1);c.stroke();
+    c.restore();
+    // 须
+    if(sp.whisker){c.strokeStyle=dark;c.lineWidth=L*0.015;
+      c.beginPath();c.moveTo(L*0.44,h*0.15);c.quadraticCurveTo(L*0.55,h*0.5,L*0.62,h*0.9);c.stroke();
+      c.beginPath();c.moveTo(L*0.44,-h*0.1);c.quadraticCurveTo(L*0.58,-h*0.4,L*0.66,-h*0.8);c.stroke();}
+    // 眼
+    c.fillStyle='#f6f2e6';c.beginPath();c.arc(L*0.34,-h*0.32,L*0.045,0,TAU);c.fill();
+    c.fillStyle='#1d1a16';c.beginPath();c.arc(L*0.345,-h*0.32,L*0.026,0,TAU);c.fill();
+    // 嘴
+    c.strokeStyle='rgba(30,24,18,0.6)';c.lineWidth=L*0.012;
+    c.beginPath();c.moveTo(nose-L*0.01,h*0.12);c.quadraticCurveTo(nose-L*0.05,h*0.2,nose-L*0.09,h*0.14);c.stroke();
+  }
+  // 胸鳍（剪影也保留）
+  c.fillStyle=mono?'#26211a':dark;
+  c.save();c.translate(L*0.2,h*0.45);c.rotate(0.5);
+  c.beginPath();c.ellipse(0,0,L*0.09,L*0.04,0,0,TAU);c.fill();c.restore();
+  c.restore();
+}
+
+/* ================= 状态机 ================= */
+let state='idle',stateT=0;
+let overlayOpen=false;
+let bobber={visible:false,x:0,y:0,tx:0,ty:0,dip:0,dipT:0};
+let castInfo=null;      // 抛竿动画
+let waitPlan=null;      // 等待期调度
+let biteWin=0;
+let hooked=null;        // {sp,size,tension,progress,redT,hold,surge,surgeT,nextSurge,tickT}
+let landing=null;       // 起鱼动画
+let held=false;
+let actionBtn=document.getElementById('action');
+let hintEl=document.getElementById('hint');
+let tensionEl=document.getElementById('tension');
+let tensionFill=document.getElementById('tensionFill');
+let toastEl=document.getElementById('toast');
+let toastTimer=null,curHint='',curHintAlert=false;
+
+function setHint(t,alert){
+  if(t===curHint&&alert===curHintAlert)return;
+  curHint=t;curHintAlert=alert;
+  hintEl.textContent=t;hintEl.classList.toggle('alert',!!alert);
+}
+function setAction(label,cls,disabled){
+  actionBtn.textContent=label;
+  actionBtn.className=cls||'';
+  actionBtn.disabled=!!disabled;
+}
+function toast(msg,bad){
+  toastEl.textContent=msg;
+  toastEl.classList.toggle('bad',!!bad);
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2200);
+}
+
+function phaseName(){return PHASES[phaseIdx((START+dayClock/CYCLE)%1)];}
+
+/* --- 抛竿 --- */
+function startCast(){
+  if(state!=='idle'||overlayOpen)return;
+  ensureAudio();
+  save.stats.casts++;persist();
+  const tx=W*rand(0.30,0.74);
+  const ty=horizon+H*rand(0.06,0.30)*(0.5+Math.random()*0.5)+H*0.03;
+  castInfo={t:0,from:null,tx,ty,released:false};
+  bobber.visible=false;
+  state='casting';stateT=0;
+  setHint('——',false);
+  setAction('···','',true);
+  sfx.cast();
+}
+function rodTip(bend,swing){
+  // 竿基点与竿尖
+  const bx=W*0.955,by=H*0.99;
+  const tipX=bx-W*0.27+swing*W*0.02;
+  const tipY=by-H*0.66+bend*H*0.15-swing*H*0.05;
+  return {bx,by,tipX,tipY};
+}
+/* --- 等待期 --- */
+function enterWaiting(){
+  state='waiting';stateT=0;
+  bobber.visible=true;bobber.x=bobber.tx=castInfo.tx;bobber.y=bobber.ty=castInfo.ty;
+  castInfo=null;
+  waitPlan={stage:'calm',next:rand(2.2,6.5),nibbles:0,nibT:0};
+  setHint('静待鱼汛……浮漂轻点别急着提',false);
+  setAction('收竿');
+  // 挑鱼
+  const pool=pickPool();
+  if(pool.length){
+    let tw=0;for(const s of pool)tw+=s.w;
+    let r=Math.random()*tw,sel=pool[0];
+    for(const s of pool){r-=s.w;if(r<=0){sel=s;break;}}
+    waitPlan.sp=sel;
+  }else waitPlan.sp=SPECIES[1];
+}
+function pickPool(){
+  const p=phaseIdx((START+dayClock/CYCLE)%1);
+  return SPECIES.filter(s=>s.times.includes(p));
+}
+/* --- 咬钩 --- */
+function enterBite(){
+  state='bite';stateT=0;
+  biteWin=clamp(1.5-waitPlan.sp.rarity*0.14,0.85,1.5);
+  setHint('咬钩了！！立刻点按提竿！',true);
+  setAction('提竿！','hot');
+  sfx.bite();
+  addRipple(bobber.tx,bobber.ty,44,60);
+  addSplash(bobber.tx,bobber.ty,5,70);
+}
+/* --- 提竿命中 --- */
+function strike(){
+  if(state!=='bite')return;
+  const sp=waitPlan.sp;
+  const size=sp.size[0]+(sp.size[1]-sp.size[0])*Math.pow(Math.random(),1.6);
+  const d=DIFF[sp.rarity];
+  hooked={sp,size,d,tension:0.25,progress:0,redT:0,hold:false,
+    nextSurge:rand(1.2,2.2),surge:0,tickT:0,shake:0};
+  // 让最靠近的鱼影负责演出
+  let best=null,bd=1e9;
+  for(const f of ambient){const dd=Math.abs(f.x*W-bobber.x);if(dd<bd){bd=dd;best=f;}}
+  if(best)best.role='fight';
+  state='hooked';stateT=0;
+  setHint('按住屏幕收线，松手卸力',false);
+  setAction('按住收线','reel');
+  tensionEl.classList.add('on');
+  sfx.plip();
+}
+/* --- 各类失败 --- */
+function endToIdle(msg,bad){
+  state='idle';stateT=0;
+  bobber.visible=false;waitPlan=null;hooked=null;tensionEl.classList.remove('on');
+  ambient.forEach(f=>{if(f.role!=='wander')f.role='wander';});
+  if(msg)toast(msg,bad);
+  setHint('点击「抛竿」，把鱼线甩向湖心',false);
+  setAction('抛竿');
+}
+/* --- 起鱼 --- */
+function startLanding(){
+  const h=hooked;
+  ambient.forEach(f=>{if(f.role!=='wander')f.role='wander';});
+  landing={t:0,sp:h.sp,size:h.size,fromX:bobber.x,fromY:bobber.y};
+  addSplash(bobber.x,bobber.y,14,130);
+  addRipple(bobber.x,bobber.y,90,90);
+  sfx.splash(true);
+  bobber.visible=false;hooked=null;tensionEl.classList.remove('on');
+  state='landing';stateT=0;
+  setHint('——',false);setAction('···','',true);
+}
+function showCatchCard(){
+  const h=landing;landing=null;
+  const sp=h.sp,isNew=!save.dex[sp.id];
+  if(isNew)save.dex[sp.id]={n:0,best:0};
+  const rec=save.dex[sp.id];
+  rec.n++;
+  const isRecord=h.size>rec.best;
+  if(isRecord)rec.best=h.size;
+  save.stats.catches++;persist();
+  // 填卡片
+  const art=document.getElementById('catchArt');
+  const ac=art.getContext('2d');
+  ac.clearRect(0,0,art.width,art.height);
+  ac.save();ac.translate(art.width/2,art.height/2+6);
+  drawFishArt(ac,sp,Math.min(230,art.width*0.72),false,0.25);
+  ac.restore();
+  document.getElementById('catchName').textContent=sp.name;
+  document.getElementById('catchStars').textContent='★'.repeat(sp.rarity+1);
+  const rt=document.getElementById('catchRarity');
+  rt.textContent=RARITY[sp.rarity].n;rt.style.color=RARITY[sp.rarity].c;
+  document.getElementById('catchSize').textContent='体长 '+h.size.toFixed(1)+' cm';
+  document.getElementById('catchRecord').textContent=isNew?'初次钓获，已录入图鉴':(isRecord?'✦ 新纪录！比先前的大':'');
+  document.getElementById('catchDesc').textContent=sp.desc;
+  document.getElementById('newBadge').classList.toggle('show',isNew);
+  openOverlay('catchOverlay');
+  if(isNew)sfx.record();else sfx.chime();
+  state='showcase';stateT=0;
+  setAction('···','',true);
+}
+
+/* ================= 主更新 ================= */
+function update(dt){
+  const dayT=(START+dayClock/CYCLE)%1;
+  const pi=phaseIdx(dayT);
+  const pn=PHASES[pi];
+  const pnEl=document.getElementById('phaseName');
+  if(pnEl.textContent!==pn)pnEl.textContent=pn;
+
+  // 环境
+  clouds.forEach(c=>{c.x+=c.v*dt;if(c.x>1.2)c.x-=1.4;});
+  birdTimer-=dt;
+  if(!birds&&birdTimer<=0&&pi!==3){
+    birds={x:-0.1,y:rand(0.10,0.26),v:rand(0.03,0.05),n:3+(Math.random()*3|0),ph:0};
+  }
+  if(birds){birds.x+=birds.v*dt;birds.ph+=dt*7;
+    if(birds.x>1.15){birds=null;birdTimer=rand(18,45);}}
+  if(Math.random()<dt*0.35)addRipple(W*rand(0.1,0.9),horizon+H*rand(0.08,0.45),rand(14,30),rand(16,30));
+  ripples.forEach(r=>{r.r+=r.spd*dt;r.a*=Math.pow(0.35,dt);});
+  ripples=ripples.filter(r=>r.a>0.02&&r.r<r.max);
+  splashes.forEach(s=>{s.t+=dt;s.vy+=560*dt;s.x+=s.vx*dt;s.y+=s.vy*dt;});
+  splashes=splashes.filter(s=>s.t<s.life);
+  fireflies.forEach(f=>{f.ph+=dt*f.sp;f.x+=Math.sin(f.ph*0.9)*0.006*dt*60*dt;});
+
+  // 鱼影游动
+  for(const f of ambient){
+    if(f.role==='wander'){
+      f.x+=f.dir*f.speed*dt;
+      f.x+=Math.sin(time*0.6+f.ph)*0.004*dt;
+      if(f.x<0.14)f.dir=1;if(f.x>0.86)f.dir=-1;
+      f.y+=Math.sin(time*0.4+f.ph)*0.002*dt*10;
+      if(f.y<0.5)f.y+=0.01*dt;if(f.y>0.8)f.y-=0.01*dt;
+    }else if(f.role==='approach'&&bobber.visible){
+      const tx=bobber.tx/W,ty=(bobber.ty)/H;
+      const dx=tx-f.x,dy=ty-f.y,dist=Math.hypot(dx,dy);
+      if(dist>0.045){f.x+=dx/dist*0.05*dt;f.y+=dy/dist*0.05*dt;
+        if(Math.abs(dx)>0.005)f.dir=dx>0?1:-1;}
+      else f.dir*=1;
+    }else if(f.role==='fight'&&bobber.visible){
+      f.x=bobber.tx/W+Math.sin(time*13)*0.012;
+      f.y=bobber.ty/H+0.02+Math.sin(time*9)*0.008;
+    }else if(f.role==='flee'){
+      f.x+=f.dir*0.12*dt;if(f.x<0.05||f.x>0.95)f.role='wander';
+    }
+  }
+
+  // 游戏状态（覆盖层打开时暂停玩法推进）
+  if(!overlayOpen||state==='showcase')stateT+=dt;
+  if(!overlayOpen||state==='idle'){
+  switch(state){
+    case 'casting':{
+      castInfo.t+=dt;
+      if(!castInfo.released&&castInfo.t>=0.5){
+        castInfo.released=true;castInfo.ft=0;
+        bobber.visible=true;
+      }
+      if(castInfo.released){
+        castInfo.ft+=dt;
+        const p=clamp(castInfo.ft/0.55,0,1);
+        const tip=rodTip(0.1,lerp(0.6,0.1,p));
+        bobber.x=lerp(tip.tipX,castInfo.tx,p);
+        bobber.y=lerp(tip.tipY,castInfo.ty,p)-Math.sin(p*Math.PI)*H*0.16;
+        if(p>=1){
+          sfx.splash(false);
+          addSplash(castInfo.tx,castInfo.ty,8,90);
+          addRipple(castInfo.tx,castInfo.ty,52,55);
+          enterWaiting();
+        }
+      }
+      break;}
+    case 'waiting':{
+      const w=waitPlan;
+      w.next-=dt;
+      if(w.stage==='calm'&&w.next<=0){
+        w.stage='approach';w.next=rand(0.9,1.6);
+        let best=null,bd=1e9;
+        for(const f of ambient){if(f.role!=='wander')continue;
+          const dd=Math.hypot(f.x*W-bobber.tx,f.y*H-bobber.ty);
+          if(dd<bd){bd=dd;best=f;}}
+        if(best)best.role='approach';
+      }else if(w.stage==='approach'&&w.next<=0){
+        w.stage='nibble';w.nibbles=1+(Math.random()*3|0);
+        w.next=rand(0.2,0.6);
+      }else if(w.stage==='nibble'&&w.next<=0){
+        bobber.dipT=0.001; // 触发点动
+        sfx.plip();
+        addRipple(bobber.tx,bobber.ty,26,30);
+        w.nibbles--;
+        setHint('浮漂在动！沉住气……',true);
+        if(w.nibbles>0)w.next=rand(0.7,1.4);
+        else{w.stage='pre';w.next=rand(0.5,1.0);}
+      }else if(w.stage==='pre'&&w.next<=0){
+        enterBite();
+      }
+      break;}
+    case 'bite':{
+      biteWin-=dt;
+      if(biteWin<=0){
+        ambient.forEach(f=>{if(f.role==='approach'){f.dir=Math.random()<0.5?1:-1;f.role='flee';}});
+        sfx.fail();
+        endToIdle('浮漂又静了下来……鱼儿走了。',true);
+      }
+      break;}
+    case 'hooked':{
+      const h=hooked;
+      const holding=held&&h.surge<=0;
+      if(holding){
+        h.progress+=(0.22-0.08*h.d)*dt;
+        h.tension+=(0.16+0.24*h.d)*dt;
+        h.tickT+=dt;
+        if(h.tickT>0.09){h.tickT=0;sfx.tick();}
+      }else{
+        h.tension-=0.38*dt;
+        h.progress-=0.05*dt;
+      }
+      // 鱼发力
+      h.nextSurge-=dt;
+      if(h.nextSurge<=0&&h.surge<=0){
+        h.surge=rand(0.6,1.2);
+        setHint('鱼在发力！快松手卸力！',true);
+      }
+      if(h.surge>0){
+        h.surge-=dt;
+        h.tension+=(0.10+0.30*h.d)*dt*(held?1:0.4);
+        if(h.surge<=0){h.surge=0;h.nextSurge=rand(1.6,2.9)-h.d*0.8;setHint('按住屏幕收线，松手卸力',false);}
+      }
+      h.tension=clamp(h.tension,0,1.15);
+      h.progress=clamp(h.progress,0,1);
+      // 张力 UI
+      tensionFill.style.width=(Math.min(1,h.tension)*100).toFixed(1)+'%';
+      if(h.tension>=0.97){
+        h.redT+=dt;tensionEl.classList.add('danger');
+        if(h.redT>1.35){
+          tensionEl.classList.remove('danger');
+          sfx.snap();addSplash(bobber.x,bobber.y,10,110);
+          ambient.forEach(f=>{if(f.role==='fight'){f.dir=Math.random()<0.5?1:-1;f.role='flee';}});
+          endToIdle('嘣——线断了，鱼儿拖着钩走了……',true);
+          return;
+        }
+      }else{h.redT=0;tensionEl.classList.remove('danger');}
+      if(h.progress>=1){tensionEl.classList.remove('danger');startLanding();}
+      break;}
+    case 'landing':{
+      landing.t+=dt;
+      if(landing.t>=0.85)showCatchCard();
+      break;}
+  }
+  }
+
+  // 浮漂动态
+  if(bobber.visible&&state!=='casting'){
+    if(bobber.dipT>0){ // 轻点试探动画
+      bobber.dipT+=dt;
+      bobber.dip=Math.sin(clamp(bobber.dipT/0.45,0,1)*Math.PI)*5;
+      if(bobber.dipT>0.45){bobber.dipT=0;bobber.dip=0;}
+    }else{
+      let target=0;
+      if(state==='bite')target=14;
+      else if(state==='hooked')target=17;
+      bobber.dip=lerp(bobber.dip,target,1-Math.pow(0.0001,dt));
+      if(state==='bite'||state==='hooked')bobber.dip+=Math.sin(time*22)*2.2;
+    }
+    bobber.x=bobber.tx;bobber.y=bobber.ty;
+  }
+}
+
+/* ================= 绘制 ================= */
+let time=0;
+function draw(){
+  const dayT=(START+dayClock/CYCLE)%1;
+  const sky=skyAt(dayT);
+  const light=sky.light;
+  const night=clamp((0.78-light)/0.36,0,1);
+  const pi=phaseIdx(dayT);
+
+  // ---- 天空 ----
+  let g=ctx.createLinearGradient(0,0,0,horizon);
+  g.addColorStop(0,css(sky.top));g.addColorStop(0.55,css(sky.mid));g.addColorStop(1,css(sky.hor));
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,horizon+2);
+
+  // 星
+  if(night>0.05){
+    ctx.save();
+    for(const s of stars){
+      const a=night*(0.4+0.6*Math.abs(Math.sin(time*0.8+s.tw)));
+      ctx.globalAlpha=a;ctx.fillStyle='#e8ecf6';
+      ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,TAU);ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ---- 日月 ----
+  let sunX=0,sunY=0,sunUp=0,moonUp=0;
+  if(dayT<=0.62){const p=clamp((dayT-0.0)/0.58,0,1);sunUp=Math.sin(p*Math.PI);
+    sunX=W*lerp(0.2,0.8,p);sunY=horizon-Math.sin(p*Math.PI)*H*0.32;
+    if(p<=0||p>=1)sunUp=0;
+  }
+  if(dayT>=0.62){const p=clamp((dayT-0.62)/0.38,0,1);moonUp=Math.sin(p*Math.PI);
+    sunX=W*lerp(0.76,0.24,p);sunY=horizon-Math.sin(p*Math.PI)*H*0.30;
+  }
+  if(sunUp>0.02&&dayT<=0.62){
+    const sc=mix('#ffd28f','#fff6d8',sunUp);
+    const rg=ctx.createRadialGradient(sunX,sunY,0,sunX,sunY,H*0.3);
+    rg.addColorStop(0,`rgba(255,220,150,${0.5*sunUp})`);
+    rg.addColorStop(1,'rgba(255,220,150,0)');
+    ctx.fillStyle=rg;ctx.fillRect(sunX-H*0.3,sunY-H*0.3,H*0.6,H*0.6);
+    ctx.fillStyle=sc;ctx.beginPath();ctx.arc(sunX,sunY,H*0.052,0,TAU);ctx.fill();
+  }else if(moonUp>0.02){
+    const rg=ctx.createRadialGradient(sunX,sunY,0,sunX,sunY,H*0.22);
+    rg.addColorStop(0,`rgba(210,220,240,${0.4*moonUp})`);
+    rg.addColorStop(1,'rgba(210,220,240,0)');
+    ctx.fillStyle=rg;ctx.fillRect(sunX-H*0.22,sunY-H*0.22,H*0.44,H*0.44);
+    ctx.fillStyle=`rgba(232,236,242,${0.9*moonUp+0.1})`;
+    ctx.beginPath();ctx.arc(sunX,sunY,H*0.04,0,TAU);ctx.fill();
+    ctx.fillStyle='rgba(160,172,196,0.5)';
+    ctx.beginPath();ctx.arc(sunX-H*0.012,sunY-H*0.008,H*0.007,0,TAU);ctx.fill();
+    ctx.beginPath();ctx.arc(sunX+H*0.014,sunY+H*0.012,H*0.005,0,TAU);ctx.fill();
+  }
+
+  // ---- 云 ----
+  ctx.save();
+  const cloudCol=mix('#f6efe2',css2hex(sky.hor),0.35);
+  for(const c of clouds){
+    const cx=c.x*W,cy=c.y*H,sc=c.s*W*0.16;
+    ctx.fillStyle=cloudCol;ctx.globalAlpha=0.45;
+    const puff=(ex,ey,rx,ry)=>{ctx.beginPath();ctx.ellipse(ex,ey,rx,ry,0,0,TAU);ctx.fill();};
+    puff(cx,cy,sc,sc*0.28);
+    puff(cx-sc*0.5,cy+sc*0.06,sc*0.55,sc*0.2);
+    puff(cx+sc*0.45,cy+sc*0.04,sc*0.5,sc*0.18);
+    puff(cx+sc*0.1,cy-sc*0.12,sc*0.45,sc*0.2);
+  }
+  ctx.restore();
+
+  // ---- 飞鸟 ----
+  if(birds){
+    ctx.save();ctx.strokeStyle=`rgba(40,42,58,${0.55*(1-night)})`;ctx.lineWidth=1.6;
+    for(let i=0;i<birds.n;i++){
+      const bx=birds.x*W-i*26,by=birds.y*H+((i%2)*10)+Math.sin(birds.ph+i)*3;
+      const fl=Math.sin(birds.ph*2+i)*4;
+      ctx.beginPath();ctx.moveTo(bx-8,by-fl);ctx.quadraticCurveTo(bx-3,by+2,bx,by);
+      ctx.quadraticCurveTo(bx+3,by+2,bx+8,by-fl);ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ---- 远山 ----
+  const baseCols=['#4a5660','#39434e','#28313e'];
+  for(let i=0;i<3;i++){
+    const L=ridgeLayers[i];
+    ctx.fillStyle=mix(css2hex(sky.mid),baseCols[i],0.55+0.12*i);
+    ctx.beginPath();ctx.moveTo(0,horizon+1);
+    for(let k=0;k<L.pts.length;k++){
+      ctx.lineTo(k/(L.pts.length-1)*W,horizon-L.pts[k]*L.amp+L.off);
+    }
+    ctx.lineTo(W,horizon+1);ctx.closePath();ctx.fill();
+  }
+  // 山脚薄雾
+  const mg=ctx.createLinearGradient(0,horizon-H*0.05,0,horizon+H*0.02);
+  mg.addColorStop(0,'rgba(255,255,255,0)');
+  mg.addColorStop(1,`rgba(255,245,230,${0.10+0.10*light})`);
+  ctx.fillStyle=mg;ctx.fillRect(0,horizon-H*0.05,W,H*0.07);
+
+  // ---- 水面 ----
+  const wTop=mixArr(sky.hor,sky.deep,0.22);
+  g=ctx.createLinearGradient(0,horizon,0,H);
+  g.addColorStop(0,css(wTop));g.addColorStop(0.45,css(mixArr(wTop,sky.deep,0.55)));g.addColorStop(1,css(sky.deep));
+  ctx.fillStyle=g;ctx.fillRect(0,horizon,W,H-horizon);
+
+  // 日/月光碎金
+  if(sunUp>0.03||moonUp>0.03){
+    const isMoon=dayT>0.62;
+    const inten=isMoon?moonUp*0.4:sunUp*(0.32+0.2*light);
+    const col=isMoon?'214,224,244':(dayT>0.42?'255,190,120':'255,225,160');
+    ctx.save();
+    for(let i=0;i<26;i++){
+      const fr=i/26;
+      const yy=horizon+Math.pow(fr,1.6)*(H-horizon)*0.85;
+      const spread=W*0.02+(yy-horizon)*0.28;
+      const xx=sunX+Math.sin(time*1.4+i*2.63)*spread;
+      const len=8+fr*46+Math.sin(time*2+i*1.7)*6;
+      ctx.fillStyle=`rgba(${col},${inten*(1-fr*0.75)*(0.5+0.5*Math.sin(time*3.1+i*4.2))})`;
+      ctx.fillRect(xx-len/2,yy,len,2);
+    }
+    ctx.restore();
+  }
+  // 波光横线
+  ctx.save();
+  const shimCol=mix('#ffffff',css2hex(sky.hor),0.5);
+  for(const s of shimmer){
+    s.x-=s.v*0.02;if(s.x<-0.2)s.x=1.2;
+    const yy=horizon+0.08+s.y*0.8*(H-horizon);
+    ctx.globalAlpha=s.a*(0.4+0.6*light);
+    ctx.fillStyle=shimCol;
+    ctx.fillRect(s.x*W,yy,s.len*W,1.4);
+  }
+  ctx.restore();
+
+  // ---- 水下鱼影 ----
+  for(const f of ambient){
+    const fx=f.x*W,fy=f.y*H,L=f.size*Math.min(W,900);
+    ctx.save();ctx.translate(fx,fy);ctx.scale(f.dir,1);
+    ctx.fillStyle='rgba(6,10,14,0.35)';
+    ctx.beginPath();ctx.ellipse(2,3,L*0.5,L*0.16,0,0,TAU);ctx.fill();
+    ctx.fillStyle='rgba(8,12,18,0.55)';
+    ctx.beginPath();ctx.ellipse(0,0,L*0.42,L*0.13,0,0,TAU);ctx.fill();
+    const wag=Math.sin(time*6+f.ph)*0.35;
+    ctx.beginPath();
+    ctx.moveTo(-L*0.38,0);
+    ctx.lineTo(-L*0.62+wag*L*10,-L*0.12);
+    ctx.lineTo(-L*0.55+wag*L*10,0);
+    ctx.lineTo(-L*0.62+wag*L*10,L*0.12);
+    ctx.closePath();ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- 涟漪 ----
+  ctx.save();
+  for(const r of ripples){
+    ctx.strokeStyle=`rgba(240,244,240,${r.a})`;
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.ellipse(r.x,r.y,r.r,r.r*0.3,0,0,TAU);ctx.stroke();
+  }
+  ctx.restore();
+
+  // ---- 木栈桥 ----
+  drawDock(light);
+
+  // ---- 鱼竿与手 ----
+  let bend=0,swing=0;
+  if(state==='casting'&&castInfo){
+    const t=castInfo.t;
+    if(t<0.28)swing=lerp(0,-1,t/0.28);
+    else if(t<0.5)swing=lerp(-1,0.7,(t-0.28)/0.22);
+    else swing=lerp(0.7,0.08,clamp((t-0.5)/0.45,0,1));
+  }
+  if(state==='hooked'&&hooked)bend=0.25+hooked.tension*0.6+Math.sin(time*16)*0.03*hooked.tension;
+  drawRod(bend,swing,light);
+
+  // ---- 鱼线与浮漂 ----
+  const tip=rodTip(bend,swing);
+  if(bobber.visible){
+    const by=bobber.y+Math.sin(time*2+bobber.ty*0.05)*1.8+(bobber.dip||0);
+    drawLine(tip.tipX,tip.tipY,bobber.x,by,state==='hooked'&&hooked?hooked.tension:0);
+    drawBobber(bobber.x,by);
+    if(state==='bite'){
+      const bounce=Math.abs(Math.sin(time*10))*8;
+      ctx.save();
+      ctx.font='700 34px "Ma Shan Zheng","Noto Serif SC",serif';
+      ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='rgba(255,250,240,0.9)';
+      ctx.strokeText('！',bobber.x,by-26-bounce);
+      ctx.fillStyle='#c23a28';ctx.fillText('！',bobber.x,by-26-bounce);
+      ctx.restore();
+    }
+  }else if(state==='idle'){
+    // 空钩垂线
+    const lx=tip.tipX+Math.sin(time*1.3)*5,ly=tip.tipY+30;
+    ctx.strokeStyle='rgba(230,232,228,0.75)';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(tip.tipX,tip.tipY);
+    ctx.quadraticCurveTo(tip.tipX+Math.sin(time*1.3)*4,tip.tipY+16,lx,ly);ctx.stroke();
+    ctx.fillStyle='#c9c9c9';
+    ctx.beginPath();ctx.arc(lx,ly+3,3.2,0.2,Math.PI*1.9);ctx.stroke();
+  }
+
+  // ---- 起鱼动画 ----
+  if(landing){
+    const p=clamp(landing.t/0.85,0,1);
+    const gx=W*0.5,gy=H*0.30;
+    const fx=lerp(landing.fromX,gx,p);
+    const fy=lerp(landing.fromY,gy,p)-Math.sin(p*Math.PI)*H*0.18;
+    ctx.save();ctx.translate(fx,fy);ctx.rotate(Math.sin(p*Math.PI*2)*0.6+(p-0.5)*0.8);
+    drawFishArt(ctx,landing.sp,Math.min(W,H)*0.2,false,0.3);
+    ctx.restore();
+  }
+
+  // ---- 水花 ----
+  ctx.save();
+  for(const s of splashes){
+    ctx.globalAlpha=clamp(1-s.t/s.life,0,1)*0.85;
+    ctx.fillStyle='#eef6f2';
+    ctx.beginPath();ctx.arc(s.x,s.y,2.1,0,TAU);ctx.fill();
+  }
+  ctx.restore();
+
+  // ---- 萤火虫 ----
+  if(night>0.2){
+    ctx.save();
+    for(const f of fireflies){
+      const a=night*(0.35+0.65*Math.abs(Math.sin(f.ph*2.2)));
+      const fx=f.x*W+Math.sin(f.ph)*30,fy=f.y*H+Math.sin(f.ph*0.7)*14;
+      const rg=ctx.createRadialGradient(fx,fy,0,fx,fy,7);
+      rg.addColorStop(0,`rgba(210,240,140,${a})`);rg.addColorStop(1,'rgba(210,240,140,0)');
+      ctx.fillStyle=rg;ctx.fillRect(fx-8,fy-8,16,16);
+    }
+    ctx.restore();
+  }
+}
+function css2hex(c){ // sky 的颜色是 rgb 数组或 rgb() 字符串，统一转 hex 字符串供 mix 用
+  if(Array.isArray(c))return '#'+c.map(v=>((v|0).toString(16).padStart(2,'0'))).join('');
+  return c;
+}
+function drawDock(light){
+  const top=H*0.845,wood=mix('#8a6a4a','#3a2e22',1-light*0.55);
+  const dark=shade(css2hex(mix('#8a6a4a','#3a2e22',1-light*0.55)),0.55);
+  const nl=W*0.05,nr=W*0.95,fl=W*0.155,fr=W*0.845;
+  // 桩与倒影（画在桥板之下、水中的部分）
+  ctx.save();
+  ctx.fillStyle=dark;
+  [[W*0.24],[W*0.5],[W*0.76]].forEach(([px])=>{
+    const pw=W*0.016;
+    const py=top+H*0.01,ph2=H*0.05;
+    ctx.fillRect(px-pw/2,py,pw,ph2);
+    ctx.globalAlpha=0.25;ctx.fillRect(px-pw/2,py+ph2,pw,ph2*0.9);ctx.globalAlpha=1;
+  });
+  ctx.restore();
+  // 桥面板
+  const planks=5,ph=(H-top)/planks;
+  for(let i=0;i<planks;i++){
+    const y0=top+i*ph,y1=y0+ph-2.5;
+    const t0=i/planks,t1=(i+1)/planks;
+    const l0=lerp(fl,nl,t0),r0=lerp(fr,nr,t0),l1=lerp(fl,nl,t1),r1=lerp(fr,nr,t1);
+    ctx.fillStyle=i%2?shade(css2hex(wood),0.92):css2hex(wood);
+    ctx.beginPath();
+    ctx.moveTo(l0,y0);ctx.lineTo(r0,y0);ctx.lineTo(r1,y1);ctx.lineTo(l1,y1);
+    ctx.closePath();ctx.fill();
+    // 木纹
+    ctx.strokeStyle='rgba(30,20,12,0.22)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(lerp(l0,l1,0.4),lerp(y0,y1,0.5));
+    ctx.lineTo(lerp(r0,r1,0.4),lerp(y0,y1,0.5));ctx.stroke();
+    // 板间阴影
+    ctx.fillStyle='rgba(15,10,6,0.4)';
+    ctx.beginPath();ctx.moveTo(l1,y1);ctx.lineTo(r1,y1);ctx.lineTo(r1,y1+2.5);ctx.lineTo(l1,y1+2.5);ctx.fill();
+  }
+  // 前沿横梁
+  ctx.fillStyle=dark;
+  ctx.beginPath();
+  ctx.moveTo(fl,top);ctx.lineTo(fr,top);
+  ctx.lineTo(lerp(fr,nr,0.03),top+H*0.012);ctx.lineTo(lerp(fl,nl,0.03),top+H*0.012);
+  ctx.closePath();ctx.fill();
+  // 系绳桩
+  ctx.fillStyle=dark;
+  const px=W*0.865,pw2=W*0.013;
+  ctx.fillRect(px-pw2/2,top-H*0.045,pw2,H*0.05);
+  ctx.beginPath();ctx.arc(px,top-H*0.045,pw2*0.7,0,TAU);ctx.fill();
+}
+function drawRod(bend,swing,light){
+  const r=rodTip(bend,swing);
+  // 竿身：二次贝塞尔分段
+  const cx=(r.bx+r.tipX)/2+swing*W*0.01,cy=(r.by+r.tipY)/2+bend*H*0.05;
+  ctx.save();
+  const segs=9;
+  let px=r.bx,py=r.by;
+  for(let i=1;i<=segs;i++){
+    const t=i/segs,mt=1-t;
+    const nx=mt*mt*r.bx+2*mt*t*cx+t*t*r.tipX;
+    const ny=mt*mt*r.by+2*mt*t*cy+t*t*r.tipY;
+    ctx.strokeStyle=shade('#5a4630',0.8+0.3*t);
+    ctx.lineWidth=lerp(7,1.8,t);
+    ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(nx,ny);ctx.stroke();
+    px=nx;py=ny;
+  }
+  // 导环
+  ctx.fillStyle='#d8d4c8';
+  for(let i=2;i<=8;i+=2){
+    const t=i/segs,mt=1-t;
+    const gx=mt*mt*r.bx+2*mt*t*cx+t*t*r.tipX;
+    const gy=mt*mt*r.by+2*mt*t*cy+t*t*r.tipY;
+    ctx.beginPath();ctx.arc(gx,gy,1.8,0,TAU);ctx.fill();
+  }
+  // 渔轮
+  const wx=r.bx-W*0.018,wy=r.by-H*0.028;
+  ctx.fillStyle='#3a3428';
+  ctx.beginPath();ctx.arc(wx,wy,W*0.009+4,0,TAU);ctx.fill();
+  ctx.strokeStyle='#8f887a';ctx.lineWidth=2;
+  const reeling=state==='hooked'&&held&&!hooked.surge;
+  if(reeling)reelAngle+=0.5;
+  ctx.save();ctx.translate(wx,wy);ctx.rotate(reelAngle);
+  ctx.beginPath();ctx.moveTo(-4,0);ctx.lineTo(4,0);ctx.stroke();ctx.restore();
+  // 手与袖口
+  const ang=Math.atan2(cy-r.by,cx-r.bx);
+  ctx.save();ctx.translate(r.bx-W*0.012,r.by-H*0.012);ctx.rotate(ang+Math.PI/2);
+  ctx.fillStyle=shade('#3c4148',light); // 袖
+  ctx.beginPath();ctx.roundRect(-W*0.03,-H*0.035,W*0.06,H*0.05,W*0.012);ctx.fill();
+  ctx.fillStyle=shade('#d9a077',lerp(0.55,1,light)); // 掌
+  ctx.beginPath();ctx.ellipse(0,H*0.008,W*0.024,H*0.03,0,0,TAU);ctx.fill();
+  ctx.strokeStyle='rgba(90,50,30,0.5)';ctx.lineWidth=1.4; // 指缝
+  for(let i=-1;i<=1;i++){
+    ctx.beginPath();ctx.moveTo(i*W*0.011,H*0.004);ctx.lineTo(i*W*0.011,H*0.03);ctx.stroke();
+  }
+  ctx.fillStyle=shade('#d9a077',lerp(0.5,0.95,light)); // 拇指
+  ctx.beginPath();ctx.ellipse(W*0.02,-H*0.008,W*0.008,H*0.018,0.5,0,TAU);ctx.fill();
+  ctx.restore();
+  // 第二只手（托竿）
+  const t2=0.42,mt=1-t2;
+  const hx=mt*mt*r.bx+2*mt*t2*cx+t2*t2*r.tipX;
+  const hy=mt*mt*r.by+2*mt*t2*cy+t2*t2*r.tipY;
+  ctx.save();ctx.translate(hx,hy+H*0.012);ctx.rotate(ang+Math.PI/2);
+  ctx.fillStyle=shade('#d9a077',lerp(0.5,0.9,light));
+  ctx.beginPath();ctx.ellipse(0,0,W*0.018,H*0.02,0,0,TAU);ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+let reelAngle=0;
+function drawLine(x0,y0,x1,y1,tension){
+  ctx.save();
+  let sag=(1-Math.min(1,tension))*H*0.055;
+  const jx=tension>0.5?Math.sin(time*42)*tension*3:0;
+  ctx.strokeStyle=`rgba(235,238,234,${0.55+tension*0.4})`;
+  ctx.lineWidth=1.1;
+  ctx.beginPath();ctx.moveTo(x0,y0);
+  ctx.quadraticCurveTo((x0+x1)/2+jx,(y0+y1)/2+sag,x1,y1);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawBobber(x,y){
+  const s=clamp(Math.min(W,H)/560,0.7,1.3)*9;
+  ctx.save();ctx.translate(x,y);
+  // 倒影
+  ctx.fillStyle='rgba(20,20,20,0.25)';
+  ctx.beginPath();ctx.ellipse(0,s*0.5,s*0.8,s*0.28,0,0,TAU);ctx.fill();
+  // 杆
+  ctx.strokeStyle='#e8e2d4';ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.moveTo(0,-s*1.5);ctx.lineTo(0,-s*0.4);ctx.stroke();
+  ctx.fillStyle='#c23a28';
+  ctx.beginPath();ctx.arc(0,-s*1.5,s*0.3,0,TAU);ctx.fill();
+  // 浮体
+  ctx.fillStyle='#c23a28';
+  ctx.beginPath();ctx.arc(0,0,s,Math.PI,TAU);ctx.fill();
+  ctx.fillStyle='#f2ede2';
+  ctx.beginPath();ctx.arc(0,0,s,0,Math.PI);ctx.fill();
+  ctx.strokeStyle='rgba(40,30,20,0.4)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(-s,0);ctx.lineTo(s,0);ctx.stroke();
+  // 水线遮下缘
+  ctx.fillStyle='rgba(30,60,70,0.35)';
+  ctx.beginPath();ctx.ellipse(0,s*0.55,s*1.15,s*0.3,0,0,TAU);ctx.fill();
+  ctx.restore();
+}
+
+/* ================= 图鉴 ================= */
+function renderDex(){
+  const grid=document.getElementById('dexGrid');
+  grid.innerHTML='';
+  let got=0,totalCatches=0;
+  for(const sp of SPECIES){
+    const rec=save.dex[sp.id];
+    if(rec)got++;else totalCatches+=0;
+    if(rec)totalCatches+=rec.n;
+    const slot=document.createElement('div');
+    slot.className='slot'+(rec?'':' locked')+(sp.rarity>=4?' legend':'');
+    const c=document.createElement('canvas');c.width=172;c.height=104;
+    const cc=c.getContext('2d');
+    cc.save();cc.translate(86,54);
+    drawFishArt(cc,sp,sp.turtle?96:118,!rec,0.2);
+    cc.restore();
+    slot.appendChild(c);
+    const nm=document.createElement('div');nm.className='nm';
+    nm.textContent=rec?sp.name:'？？？';
+    slot.appendChild(nm);
+    const st=document.createElement('div');st.className='st';
+    st.textContent='★'.repeat(sp.rarity+1)+RARITY[sp.rarity].n;
+    slot.appendChild(st);
+    const mt=document.createElement('div');mt.className='mt';
+    mt.textContent=rec
+      ?`最大 ${rec.best.toFixed(1)} cm · ${rec.n} 尾\n出没 ${sp.times.map(t=>PHASES[t]).join('/')}`
+      :`出没 ${sp.times.map(t=>PHASES[t]).join('/')}`;
+    slot.appendChild(mt);
+    grid.appendChild(slot);
+  }
+  document.querySelector('#dexProgress b').textContent=got;
+  document.getElementById('dexStats').textContent=
+    `累计渔获 ${save.stats.catches} 尾 · 抛竿 ${save.stats.casts} 次`;
+}
+
+/* ================= 覆盖层 ================= */
+function openOverlay(id){
+  document.getElementById(id).classList.add('open');
+  overlayOpen=true;
+  refreshHudLock();
+}
+function closeOverlay(id){
+  document.getElementById(id).classList.remove('open');
+  overlayOpen=!!document.querySelector('.overlay.open');
+  refreshHudLock();
+}
+function refreshHudLock(){
+  const busy=state==='bite'||state==='hooked'||state==='landing';
+  document.getElementById('btnDex').disabled=busy||overlayOpen;
+  document.getElementById('btnHelp').disabled=busy||overlayOpen;
+}
+document.getElementById('catchOk').addEventListener('click',()=>{
+  closeOverlay('catchOverlay');
+  endToIdle(null);
+});
+document.getElementById('btnDex').addEventListener('click',()=>{
+  if(overlayOpen)return;
+  renderDex();openOverlay('dexOverlay');
+});
+document.getElementById('dexClose').addEventListener('click',()=>closeOverlay('dexOverlay'));
+document.getElementById('btnHelp').addEventListener('click',()=>{if(!overlayOpen)openOverlay('helpOverlay');});
+document.getElementById('helpClose').addEventListener('click',()=>closeOverlay('helpOverlay'));
+const sndBtn=document.getElementById('btnSound');
+function refreshSnd(){sndBtn.textContent=muted?'静':'音';sndBtn.style.opacity=muted?0.55:1;}
+sndBtn.addEventListener('click',()=>{
+  muted=!muted;try{localStorage.setItem('lakeFishingMuted',muted?'1':'0');}catch(e){}
+  refreshSnd();if(!muted){ensureAudio();sfx.plip();}
+});
+refreshSnd();
+
+/* ================= 输入 ================= */
+actionBtn.addEventListener('pointerdown',e=>{
+  e.preventDefault();e.stopPropagation();
+  ensureAudio();
+  if(overlayOpen)return;
+  if(state==='idle')startCast();
+  else if(state==='bite')strike();
+  else if(state==='hooked'&&hooked)held=true;
+  else if(state==='waiting'){
+    ambient.forEach(f=>{if(f.role!=='wander')f.role='wander';});
+    sfx.plip();
+    endToIdle('收回了鱼线。');
+  }
+});
+window.addEventListener('pointerdown',e=>{
+  ensureAudio();
+  if(overlayOpen)return;
+  if(state==='bite'){strike();return;}
+  if(state==='hooked'&&hooked){held=true;if(hooked.surge>0)setHint('鱼在发力！快松手卸力！',true);}
+  else if(state==='idle'&&e.target===cv){startCast();}
+});
+function releaseHold(){held=false;}
+window.addEventListener('pointerup',releaseHold);
+window.addEventListener('pointercancel',releaseHold);
+window.addEventListener('blur',releaseHold);
+window.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ================= 主循环 ================= */
+let last=performance.now();
+function frame(now){
+  const dt=clamp((now-last)/1000,0,0.05);
+  last=now;
+  time+=dt;
+  if(!overlayOpen||state==='showcase')dayClock+=dt;
+  try{update(dt);}catch(e){console.error('update:',e);}
+  try{draw();}catch(e){console.error('draw:',e);}
+  requestAnimationFrame(frame);
+}
+resize();
+setHint('点击「抛竿」，把鱼线甩向湖心',false);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
